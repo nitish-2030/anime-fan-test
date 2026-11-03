@@ -215,6 +215,7 @@ h1[contenteditable]:hover{text-shadow:4px 0 rgba(0,255,255,.65),-4px 0 var(--acc
 .pop{animation:popin .5s cubic-bezier(.2,1.6,.4,1) both}@keyframes popin{from{transform:scale(.3);opacity:0}}
 .cf{position:fixed;width:8px;height:8px;border-radius:2px;pointer-events:none;z-index:80}
 @media(prefers-reduced-motion:reduce){.op,.qz *{animation:none!important}}
+#fin h2.qt{font-size:clamp(1.1rem,2vw,1.6rem);letter-spacing:0;color:#fff}
 </style>
 </head>
 <body>
@@ -222,6 +223,7 @@ h1[contenteditable]:hover{text-shadow:4px 0 rgba(0,255,255,.65),-4px 0 var(--acc
 <nav class="sidebar" aria-label="Characters">
   <h2>Roster</h2>
   <div role="tablist" id="tabs" aria-orientation="vertical"></div>
+  <button class="finb" id="dayBtn">📅 Daily Challenge</button>
   <button class="finb" id="finBtn">🏆 Final Result</button>
   <div class="tools">
     <button class="wide" id="dlHtml">⬇ Save as HTML</button>
@@ -388,6 +390,57 @@ h1[contenteditable]:hover{text-shadow:4px 0 rgba(0,255,255,.65),-4px 0 var(--acc
     try { const b = await new Promise(r => card().toBlob(r)), f = new File([b], 'result.png', { type: 'image/png' }); if (navigator.canShare && navigator.canShare({ files: [f] })) return navigator.share({ files: [f], text: t, url: mkLink() }); } catch {}
     if (navigator.share) return navigator.share({ text: t, url: mkLink() }); chal();
   }
+
+  /* ===== DAILY CHALLENGE ===== */
+  const DK = 'aft-d';
+  const dKey = (off = 0) => { const d = new Date(Date.now() - off * 864e5); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const dGet = () => { try { return JSON.parse(localStorage.getItem(DK)) || {}; } catch { return {}; } };
+  const dSet = v => { try { localStorage.setItem(DK, JSON.stringify(v)); } catch {} };
+  const mkr = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const liveStreak = s => (s.last === dKey() || s.last === dKey(1)) ? (s.streak || 0) : 0;
+  function dBtn() { const l = liveStreak(dGet()); document.getElementById('dayBtn').textContent = '📅 Daily Challenge' + (l ? '  🔥' + l : ''); }
+  dBtn();
+  function dailySet() {
+    const r = mkr(+dKey().replace(/-/g, '')), sh = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+    return sh(data.map(d => { const q = QZ[d.id][Math.floor(r() * 5)]; return { c: d, q: q[0], a: q[1], f: q[3], o: sh([q[1], ...q[2]]) }; }));
+  }
+  function dResult(res, streak) {
+    const n = res.filter(Boolean).length, grid = res.map(v => v ? '🟩' : '🟥').join('');
+    const text = `Anime Fan Test Daily ${dKey()}\n${n}/5 ${grid}\n🔥 ${streak} day streak\n${location.origin + location.pathname}`;
+    const mid = new Date(); mid.setHours(24, 0, 0, 0); const ms = mid - Date.now();
+    fin.hidden = false;
+    fin.innerHTML = `<div class="in"><h2>DAILY CHALLENGE · ${dKey()}</h2><div class="big">${n}/5</div><div style="font-size:2rem;letter-spacing:4px;margin:8px 0">${grid}</div><p>🔥 ${streak} day streak · Next challenge in ${Math.floor(ms / 36e5)}h ${Math.floor(ms % 36e5 / 6e4)}m</p><div style="margin-top:16px"><button class="go" id="dsh">Share</button><button class="go alt" id="dcl">Close</button></div><p id="dmsg" style="color:var(--accent);margin-top:8px"></p></div>`;
+    document.getElementById('dcl').onclick = () => fin.hidden = true;
+    document.getElementById('dsh').onclick = async () => {
+      if (navigator.share) { try { await navigator.share({ text }); return; } catch {} }
+      try { await navigator.clipboard.writeText(text); document.getElementById('dmsg').textContent = 'Result copied! Paste it anywhere.'; } catch { prompt('Copy this:', text); }
+    };
+  }
+  function runDaily() {
+    const st = dGet(), today = dKey();
+    if (st.last === today) return dResult(st.res || [], st.streak || 1);
+    const qs = dailySet(); let i = 0; const res = []; QS = { pick: null, next: null }; fin.hidden = false;
+    const draw = () => {
+      const q = qs[i], L = ['A', 'B', 'C', 'D'], right = q.o.indexOf(q.a);
+      fin.innerHTML = `<div class="in"><div class="qz"><div class="qk">Daily Challenge · Q${i + 1}/5 · ${esc(q.c.name)} <a href="#" id="dx" style="float:right;color:#999">✕ Close</a></div><div class="dots">${[0,1,2,3,4].map(k => `<span class="${k < i ? (res[k] ? 'd' : 'x') : k == i ? 'cur' : ''}"></span>`).join('')}</div><h2 class="qt">${esc(q.q)}</h2>${q.o.map((o, k) => `<button class="op" style="animation-delay:${k * .07}s"><b>${L[k]}</b><span>${esc(o)}</span></button>`).join('')}<div class="fact"></div><button class="go" id="nxt">${i == 4 ? 'Finish' : 'Next'} ⏎</button></div></div>`;
+      document.getElementById('dx').onclick = e => { e.preventDefault(); QS = null; fin.hidden = true; };
+      const ops = [...fin.querySelectorAll('.op')], fact = fin.querySelector('.fact'), nx = document.getElementById('nxt'); let locked = false;
+      const pick = k => {
+        if (locked) return; locked = true; const ok = k === right; res[i] = ok;
+        ops.forEach((x, j) => { x.disabled = true; x.classList.add(j === right ? 'ok' : j === k ? 'no' : 'dim'); });
+        if (ok) burst(ops[k], q.c.color); else fin.querySelector('.in').animate([{ translate: '0' }, { translate: '-10px' }, { translate: '10px' }, { translate: '0' }], { duration: 300 });
+        fact.textContent = (ok ? 'Correct! ' : 'Not quite. ') + 'Did you know? ' + q.f; fact.classList.add('on'); nx.classList.add('on');
+        nx.onclick = QS.next = () => { QS.next = null; ++i < 5 ? draw() : done(); };
+      };
+      QS.pick = pick; QS.next = null; ops.forEach((b, k) => b.onclick = () => pick(k));
+    };
+    const done = () => {
+      QS = null; const streak = (st.last === dKey(1) ? (st.streak || 0) : 0) + 1;
+      dSet({ last: today, res: res.map(Boolean), streak, best: Math.max(st.best || 0, streak) }); dBtn(); dResult(res, streak);
+    };
+    draw();
+  }
+  document.getElementById('dayBtn').onclick = runDaily;
 
 
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
